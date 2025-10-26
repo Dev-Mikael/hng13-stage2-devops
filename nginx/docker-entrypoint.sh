@@ -1,20 +1,15 @@
 #!/bin/sh
 set -eu
 
-# This script builds the real nginx.conf from template using ACTIVE_POOL.
-# It then starts nginx in foreground so `nginx -s reload` works.
-
-TEMPLATE=/etc/nginx/nginx.conf.template
+TEMPLATE=/etc/nginx/templates/nginx.conf.template
 OUT=/etc/nginx/nginx.conf
 
-# Basic validation
 if [ ! -f "$TEMPLATE" ]; then
-  echo "Missing $TEMPLATE"
+  echo "template $TEMPLATE not found"
   exit 1
 fi
 
-# Determine primary & backup based on ACTIVE_POOL
-# Expect env: ACTIVE_POOL, BLUE_HOST, GREEN_HOST, BLUE_PORT, GREEN_PORT
+# default fallbacks
 : "${ACTIVE_POOL:=blue}"
 : "${BLUE_HOST:=app_blue}"
 : "${GREEN_HOST:=app_green}"
@@ -33,13 +28,8 @@ else
   export BACKUP_PORT="$BLUE_PORT"
 fi
 
-# Also expose RELEASE_IDs for access in template if needed
-: "${RELEASE_ID_BLUE:=}"
-: "${RELEASE_ID_GREEN:=}"
+# Render template and start nginx
+envsubst '\$PRIMARY_HOST \$PRIMARY_PORT \$BACKUP_HOST \$BACKUP_PORT' < "$TEMPLATE" > "$OUT"
 
-# Render template (envsubst expects ${VAR} style)
-envsubst '\$PRIMARY_HOST \$PRIMARY_PORT \$BACKUP_HOST \$BACKUP_PORT \$RELEASE_ID_BLUE \$RELEASE_ID_GREEN' \
-  < "$TEMPLATE" > "$OUT"
-
-# Start nginx in foreground so docker can control it
+# Run nginx in foreground so docker can manage it and nginx -s reload works
 nginx -g 'daemon off;'
