@@ -47,6 +47,7 @@ The `DECISION.md` (this file) explains my reasoning and lessons learned, which I
 2. **Image not found** — I learned to verify image tags on Docker Hub before referencing them.
 3. **Nginx “invalid proto” error** — This happened when I mistakenly added a full URL instead of `host:port` inside upstream blocks.
 4. **Env substitution** — Understanding how `envsubst` works with shell variables helped me debug config generation issues.
+5. **Ports not open** - ports 8081 and 8082 were not allowed inbound access so i ran into errors.
 
 Each of these mistakes helped me improve my debugging skills, understand container networking better, and learn how Nginx expects configurations.
 
