@@ -1,8 +1,8 @@
-version: "3.8"
+version: "3.9"
 
 services:
   nginx:
-    image: nginx:1.25
+    image: nginx:1.25-alpine
     container_name: nginx
     env_file:
       - ./.env
@@ -12,15 +12,12 @@ services:
       - GREEN_HOST=app_green
       - BLUE_PORT=${PORT}
       - GREEN_PORT=${PORT}
-      - RELEASE_ID_BLUE=${RELEASE_ID_BLUE}
-      - RELEASE_ID_GREEN=${RELEASE_ID_GREEN}
     ports:
-      - "8080:80"     # public entrypoint
+      - "8080:80"          # Public entrypoint for grader: http://localhost:8080
     volumes:
-      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
       - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
-      - /etc/localtime:/etc/localtime:ro
-    command: ["/bin/sh","/docker-entrypoint.sh"]
+    command: ["/bin/sh", "/docker-entrypoint.sh"]
     restart: unless-stopped
     depends_on:
       - app_blue
@@ -36,7 +33,7 @@ services:
       - RELEASE_ID=${RELEASE_ID_BLUE}
       - APP_POOL=blue
     ports:
-      - "8081:${PORT}"   # grader can call /chaos on host:8081
+      - "8081:${PORT}"     # direct port to allow grader to call /chaos on Blue
 
   app_green:
     image: ${GREEN_IMAGE}
@@ -48,4 +45,4 @@ services:
       - RELEASE_ID=${RELEASE_ID_GREEN}
       - APP_POOL=green
     ports:
-      - "8082:${PORT}"   # grader can call /chaos on host:8082
+      - "8082:${PORT}"     # direct port to allow grader to call /chaos on Green
