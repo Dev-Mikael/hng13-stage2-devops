@@ -28,7 +28,7 @@ server {
         proxy_read_timeout 5s;
 
         # Try primary, on error/timeout/http_5xx retry to backup within same client request
-        proxy_next_upstream error timeout http_500 http_502 http_503 http_504 http_429 http_5xx;
+        proxy_next_upstream error timeout http_500 http_502 http_503 http_504 http_429;
         proxy_next_upstream_tries 2;
         proxy_next_upstream_timeout 6s;
 
