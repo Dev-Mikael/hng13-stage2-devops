@@ -1,48 +1,47 @@
-version: "3.9"
+version: "3.8"
 
 services:
   nginx:
     image: nginx:1.25-alpine
     container_name: nginx
-    env_file:
-      - ./.env
-    environment:
-      - ACTIVE_POOL=${ACTIVE_POOL}
-      - BLUE_HOST=app_blue
-      - GREEN_HOST=app_green
-      - BLUE_PORT=${PORT}
-      - GREEN_PORT=${PORT}
-    ports:
-      - "8080:80"          # Public entrypoint for grader: http://localhost:8080
-    volumes:
-      - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-      - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
-    command: ["/bin/sh", "/docker-entrypoint.sh"]
-    restart: unless-stopped
     depends_on:
       - app_blue
       - app_green
+    ports:
+      - "${HOST_NGINX_PORT:-8080}:80"
+    environment:
+      - ACTIVE_POOL=${ACTIVE_POOL}
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/nginx-entrypoint.sh:/usr/local/bin/nginx-entrypoint.sh:ro
+    entrypoint: ["/usr/local/bin/nginx-entrypoint.sh"]
+    networks:
+      - bg-net
 
   app_blue:
     image: ${BLUE_IMAGE}
     container_name: app_blue
-    env_file:
-      - ./.env
     environment:
       - PORT=${PORT}
-      - RELEASE_ID=${RELEASE_ID_BLUE}
       - APP_POOL=blue
+      - RELEASE_ID=${RELEASE_ID_BLUE}
     ports:
-      - "8081:${PORT}"     # direct port to allow grader to call /chaos on Blue
+      - "${HOST_BLUE_PORT:-8081}:${PORT}"
+    networks:
+      - bg-net
 
   app_green:
     image: ${GREEN_IMAGE}
     container_name: app_green
-    env_file:
-      - ./.env
     environment:
       - PORT=${PORT}
-      - RELEASE_ID=${RELEASE_ID_GREEN}
       - APP_POOL=green
+      - RELEASE_ID=${RELEASE_ID_GREEN}
     ports:
-      - "8082:${PORT}"     # direct port to allow grader to call /chaos on Green
+      - "${HOST_GREEN_PORT:-8082}:${PORT}"
+    networks:
+      - bg-net
+
+networks:
+  bg-net:
+    driver: bridge
