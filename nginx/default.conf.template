@@ -1,0 +1,62 @@
+# default.conf.template - templated upstream ordering by ACTIVE_POOL
+# envsubst will replace ${ACTIVE_POOL} with "blue" or "green"
+
+server {
+    listen 80;
+    server_name _;
+
+    # Healthcheck endpoint to verify nginx itself
+    location = /nginx_healthz {
+        return 200 "nginx ok\n";
+    }
+
+    location / {
+        # proxy settings and timeouts
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # preserve upstream headers from app (do not strip)
+        # ensure app headers (X-App-Pool, X-Release-Id) are passed to clients
+        proxy_pass_header X-App-Pool;
+        proxy_pass_header X-Release-Id;
+
+        # Fast timeouts so failures detected quickly
+        proxy_connect_timeout 1s;
+        proxy_send_timeout 5s;
+        proxy_read_timeout 5s;
+
+        # Try primary, on error/timeout/http_5xx retry to backup within same client request
+        proxy_next_upstream error timeout http_500 http_502 http_503 http_504 http_429 http_5xx;
+        proxy_next_upstream_tries 2;
+        proxy_next_upstream_timeout 6s;
+
+        # actual upstream selection is in upstream block below
+        proxy_pass http://app_pool;
+    }
+}
+
+# Upstream config: order is primary then backup (backup keyword)
+# We use short max_fails + fail_timeout on primary to mark it down quickly
+upstream app_pool {
+    # When ACTIVE_POOL is blue -> primary is app_blue, backup app_green
+    # When ACTIVE_POOL is green -> primary is app_green, backup app_blue
+
+    # The template below is written so envsubst will replace ${ACTIVE_POOL}
+    # and the script will swap ordering. The literal server lines below are present
+    # and commented where appropriate; envsubst will generate final file.
+
+    # If ACTIVE_POOL == "blue":
+    #   server app_blue:8080 max_fails=1 fail_timeout=3s;
+    #   server app_green:8080 backup;
+
+    # If ACTIVE_POOL == "green":
+    #   server app_green:8080 max_fails=1 fail_timeout=3s;
+    #   server app_blue:8080 backup;
+
+    ## BEGIN ORDERED SERVERS (do not edit)
+    ${ACTIVE_POOL}_PRIMARY
+    ${ACTIVE_POOL}_BACKUP
+    ## END ORDERED SERVERS
+}
